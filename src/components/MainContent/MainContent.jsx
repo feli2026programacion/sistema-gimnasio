@@ -43,7 +43,7 @@ export function MainContent() {
   return (
     <main className={styles.container}>
       <section className={styles.intro}>
-        <h1 className={styles.mainTitle}>Sistema de Gestión de Gimnasios RT Bumpers y Gym Lucía</h1>
+        <h1 className={styles.mainTitle}>Sistema de Gestión de Gimnasios RT Bumpers y El Gym Lucía</h1>
         
         <h2>¿Qué es?</h2>
         <p>

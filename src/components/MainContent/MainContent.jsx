@@ -5,12 +5,12 @@ function MainContent() {
   return (
     <main className={estilos.contenido}>
       <section className={estilos.intro}>
-        <h1 className={estilos.mainTitle}>Sistema de Gestión de Gimnasios RT Bumpers y El Gym Lucía</h1>
+        <h1 className={estilos.mainTitle}>Sistema de Gestión de Gimnasios RT Burpers y El Gym Lucía</h1>
         
         <h2>¿Qué es?</h2>
         <p>
           Es un sistema informático desarrollado para gestionar y organizar las actividades 
-          administrativas y operativas de las dos sedes del gimnasio RT Bumpers y Gym Lucía.
+          administrativas y operativas de las dos sedes del gimnasio RT Burpers y El Gym Lucía.
         </p>
         
         <h2>¿Para qué sirve?</h2>

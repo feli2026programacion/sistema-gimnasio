@@ -1,16 +1,23 @@
-# React + Vite
+# Sistema de Gestión para Gimnasio (RT BURPERS Y GYM LUCIA)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Integrantes
+- Cruz Felicidad
+- Calpanchay Sonia
+- Joaquin Torrez
+- Cansino Fabricio
+- Katrina Gonzalez
 
-Currently, two official plugins are available:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+# Descripción del Sistema
+Este es nuestro trabajo práctico para la materia. Hicimos una aplicación web en React y Vite para la página de un gimnasio. Nos organizamos dividiendo todo en componentes (`Navbar`, `Footer`, `MainContent` y `Tarjeta`), y para darle estilo usamos CSS Modules y variables globales para que quede bien ordenado y adaptable
 
-## React Compiler
+## Captura de la Página Funcionando
+![Captura de la página](./public/image.png)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Comandos para Levantar el Proyecto
 
-## Expanding the ESLint configuration
+Sigue estos pasos para clonar y ejecutar el proyecto localmente:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+1. Clonar el repositorio:
+   ```bash
+   git clone [https://github.com/feli2026programacion/sistema-gimnasio.git](https://github.com/feli2026programacion/sistema-gimnasio.git)

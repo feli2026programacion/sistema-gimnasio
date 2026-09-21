@@ -20,4 +20,4 @@ Sigue estos pasos para clonar y ejecutar el proyecto localmente:
 
 1. Clonar el repositorio:
    ```bash
-   git clone [https://github.com/feli2026programacion/sistema-gimnasio.git](https://github.com/feli2026programacion/sistema-gimnasio.git)
+   git clone https://github.com/feli2026programacion/sistema-gimnasio.git

@@ -1,15 +1,13 @@
-import styles from './Footer.module.css';
+import estilos from './Footer.module.css';
 
-export function Footer() {
+function Footer() {
   return (
-    <footer className={styles.footer}>
-      <div className={styles.content}>
-        <p><strong>Instituto:</strong> Instituto Superior Del Milagro</p>
-        <p><strong>Carrera:</strong> Tecnicatura Superior en Análisis de Sistemas Informáticos</p>
-        <p>
-          <strong>Equipo:</strong> Cansino Fabricio, Calpanchay Sonia, Cruz Felicidad, Gonzalez Katrina, Torrez Joaquin,
-        </p>
-      </div>
+    <footer className={estilos.pie}>
+      <p>Sistema de Gestión de Gimnasios – Práctica Profesional 2</p>
+      <p>Equipo: Calpanchay, Cansino, Cruz, Gonzalez y Torrez</p>
+      <p>Instituto Superior Del Milagro N.º 8207 – 2026</p>
     </footer>
   );
 }
+
+export default Footer;

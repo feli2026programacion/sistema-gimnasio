@@ -1,26 +1,16 @@
-.navbar {
+/* src/components/Navbar/Navbar.module.css */
+.barra {
   display: flex;
   align-items: center;
-  padding: 0.8rem 2rem;
-  background-color: #1a2e26;
-  color: #ffffff;
+  gap: 16px;
+  padding: 12px 24px;
+  background: var(--principal);
+  color: white;
 }
 
-.logoContainer {
-  display: flex;
-  align-items: center;
-  gap: 1.2rem;
-}
+.logo { height: 40px; }
 
-.logo {
-  height: 60px;
-  width: auto;
-  border-radius: 50%;
-  object-fit: cover;
-}
+.titulo { font-size: 1.2rem; margin: 0; }
 
-.title {
-  font-size: 1.4rem;
-  margin: 0;
-  color: #e2f1e7;
-}
+.menu { margin-left: auto; display: flex; gap: 16px; }
+.menu a { color: white; text-decoration: none; }

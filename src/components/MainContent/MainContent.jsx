@@ -1,49 +1,11 @@
-import styles from './MainContent.module.css';
+import Tarjeta from '../Tarjeta/Tarjeta';
+import estilos from './MainContent.module.css';
 
-export function MainContent() {
-  const modulos = [
-    {
-      nombre: 'Clientes y asistencias',
-      descripcion: 'Permite registrar los datos de los clientes y controlar sus asistencias al gimnasio.'
-    },
-    {
-      nombre: 'Cuotas y deudas',
-      descripcion: 'Permite registrar las cuotas de los clientes y controlar los pagos pendientes y las deudas.'
-    },
-    {
-      nombre: 'Ventas',
-      descripcion: 'Permite registrar las ventas realizadas y sus respectivos detalles.'
-    },
-    {
-      nombre: 'Productos y stock',
-      descripcion: 'Permite administrar los productos disponibles y controlar los productos correspondientes a cada sede.'
-    },
-    {
-      nombre: 'Proveedores',
-      descripcion: 'Permite registrar y relacionar los proveedores con los productos.'
-    },
-    {
-      nombre: 'Sedes',
-      descripcion: 'Permite organizar la información de las diferentes sedes del gimnasio.'
-    },
-    {
-      nombre: 'Planes',
-      descripcion: 'Permite administrar los planes que ofrece el gimnasio y relacionarlos con las cuotas de los clientes.'
-    },
-    {
-      nombre: 'Horarios',
-      descripcion: 'Permite gestionar los horarios y la relación de los horarios con los usuarios.'
-    },
-    {
-      nombre: 'Usuarios y permisos',
-      descripcion: 'Permite administrar los usuarios del sistema, sus perfiles y los permisos que tendrá cada uno.'
-    }
-  ];
-
+function MainContent() {
   return (
-    <main className={styles.container}>
-      <section className={styles.intro}>
-        <h1 className={styles.mainTitle}>Sistema de Gestión de Gimnasios RT Bumpers y El Gym Lucía</h1>
+    <main className={estilos.contenido}>
+      <section className={estilos.intro}>
+        <h1 className={estilos.mainTitle}>Sistema de Gestión de Gimnasios RT Bumpers y El Gym Lucía</h1>
         
         <h2>¿Qué es?</h2>
         <p>
@@ -59,17 +21,29 @@ export function MainContent() {
         </p>
       </section>
 
-      <section className={styles.modulesSection}>
+      <section className={estilos.modulesSection}>
         <h2>Módulos principales del sistema</h2>
-        <div className={styles.grid}>
-          {modulos.map((mod, index) => (
-            <div key={index} className={styles.card}>
-              <h3>{mod.nombre}</h3>
-              <p>{mod.descripcion}</p>
-            </div>
-          ))}
+        <div className={estilos.modulos}>
+          <Tarjeta 
+            titulo="Clientes y asistencias" 
+            descripcion="Permite registrar los datos de los clientes y controlar sus asistencias al gimnasio." 
+            estado="Activo"
+            principal={true} 
+          />
+          <Tarjeta 
+            titulo="Cuotas y deudas" 
+            descripcion="Permite registrar las cuotas de los clientes y controlar los pagos pendientes y las deudas." 
+            estado="Pendiente" 
+          />
+          <Tarjeta 
+            titulo="Ventas" 
+            descripcion="Permite registrar las ventas realizadas y sus respectivos detalles." 
+            estado="Activo" 
+          />
         </div>
       </section>
     </main>
   );
 }
+
+export default MainContent;

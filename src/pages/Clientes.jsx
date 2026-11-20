@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { db } from '../firebase';
-import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 
 function ClientesPage() {
     const [clientes, setClientes] = useState([]);
@@ -125,20 +125,6 @@ function ClientesPage() {
         }
     };
 
-    // Alternar estado (Activo / Inactivo)
-    const handleCambiarEstado = async (dniCliente, estadoActual) => {
-        const nuevoEstado = estadoActual === 'Inactivo' ? 'Activo' : 'Inactivo';
-        try {
-            const clienteRef = doc(db, 'clientes', String(dniCliente));
-            await updateDoc(clienteRef, { estado: nuevoEstado });
-            setClientes((prev) =>
-                prev.map((c) => (c.dni === dniCliente ? { ...c, estado: nuevoEstado } : c))
-            );
-        } catch (error) {
-            console.error('Error al cambiar estado: ', error);
-        }
-    };
-
     // Filtrar por DNI o Nombre completo
     const clientesFiltrados = clientes.filter((c) => {
         const textoBusqueda = busqueda.toLowerCase();
@@ -250,6 +236,7 @@ function ClientesPage() {
                                             {detallePlan}
                                         </td>
                                         <td style={styles.tdCenter}>
+                                            {/* El estado se gestiona automáticamente por cuota, vencimiento o clases */}
                                             <div style={styles.actionButtonsContainer}>
                                                 <button
                                                     type="button"
@@ -257,16 +244,6 @@ function ClientesPage() {
                                                     onClick={() => abrirModalEditar(cliente)}
                                                 >
                                                     Editar
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    style={{
-                                                        ...styles.toggleButton,
-                                                        backgroundColor: isActivo ? '#1d4ed8' : '#15803d',
-                                                    }}
-                                                    onClick={() => handleCambiarEstado(cliente.dni, estado)}
-                                                >
-                                                    {isActivo ? 'Inactivar' : 'Activar'}
                                                 </button>
                                                 <button
                                                     type="button"
@@ -323,13 +300,22 @@ function ClientesPage() {
                                 <label style={styles.label}>Nombre:</label>
                                 <input
                                     type="text"
+                                    maxLength={20}
                                     placeholder="Ej: Juan"
+                                    onInput={(e) => {
+                                        e.target.value = e.target.value
+                                            .replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '')
+                                            .slice(0, 20);
+                                    }}
                                     {...register('nombre', {
                                         required: 'El nombre es obligatorio',
                                         minLength: { value: 2, message: 'Mínimo 2 caracteres' },
-                                        maxLength: {value: 20, message: 'Maximo 20 caracteres'},
+                                        maxLength: { value: 20, message: 'Máximo 20 caracteres' },
+                                        pattern: {
+                                            value: /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/,
+                                            message: 'Solo se permiten letras',
+                                        },
                                     })}
-                                    maxLength={20}
                                     style={styles.input}
                                 />
                                 {errors.nombre && <p style={styles.errorText}>{errors.nombre.message}</p>}
@@ -339,13 +325,22 @@ function ClientesPage() {
                                 <label style={styles.label}>Apellido:</label>
                                 <input
                                     type="text"
+                                    maxLength={20}
                                     placeholder="Ej: Pérez"
+                                    onInput={(e) => {
+                                        e.target.value = e.target.value
+                                            .replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '')
+                                            .slice(0, 20);
+                                    }}
                                     {...register('apellido', {
                                         required: 'El apellido es obligatorio',
                                         minLength: { value: 2, message: 'Mínimo 2 caracteres' },
-                                        maxLength: {value: 20, message: 'Maximo 20 caracteres'},
+                                        maxLength: { value: 20, message: 'Máximo 20 caracteres' },
+                                        pattern: {
+                                            value: /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/,
+                                            message: 'Solo se permiten letras',
+                                        },
                                     })}
-                                    maxLength={20}
                                     style={styles.input}
                                 />
                                 {errors.apellido && <p style={styles.errorText}>{errors.apellido.message}</p>}
@@ -378,6 +373,7 @@ function ClientesPage() {
                                 <label style={styles.label}>Correo:</label>
                                 <input
                                     type="email"
+                                    maxLength={60}
                                     placeholder="Ej: socio@correo.com"
                                     {...register('correo', {
                                         required: 'El correo es obligatorio',
@@ -540,15 +536,6 @@ const styles = {
     editButton: {
         backgroundColor: '#eab308',
         color: '#000',
-        border: 'none',
-        padding: '5px 10px',
-        borderRadius: '4px',
-        cursor: 'pointer',
-        fontSize: '12px',
-        fontWeight: 'bold',
-    },
-    toggleButton: {
-        color: '#fff',
         border: 'none',
         padding: '5px 10px',
         borderRadius: '4px',

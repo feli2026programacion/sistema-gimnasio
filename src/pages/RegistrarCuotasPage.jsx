@@ -4,6 +4,30 @@ import { useForm } from 'react-hook-form';
 import { db } from '../firebase';
 import { collection, getDocs, addDoc, doc, updateDoc, query, where } from 'firebase/firestore';
 
+function obtenerFechaHoyLocal() {
+    const ahora = new Date();
+    const anio = ahora.getFullYear();
+    const mes = String(ahora.getMonth() + 1).padStart(2, '0');
+    const dia = String(ahora.getDate()).padStart(2, '0');
+    return `${anio}-${mes}-${dia}`;
+}
+
+// Verifica si el socio ya cuenta con una cuota activa y no vencida
+function tieneCuotaVigente(cliente, fechaHoy) {
+    if (!cliente || cliente.estado !== 'Activo') return false;
+
+    const fechaVenc = cliente.fecha_vencimiento;
+    const dentroDeFecha = !fechaVenc || fechaVenc >= fechaHoy;
+
+    if (!dentroDeFecha) return false;
+
+    if (cliente.tiene_limite_clases) {
+        return Number(cliente.clases_disponibles || 0) > 0;
+    }
+
+    return true;
+}
+
 function RegistrarCuotaPage() {
     const navigate = useNavigate();
     const [clientes, setClientes] = useState([]);
@@ -11,6 +35,8 @@ function RegistrarCuotaPage() {
     // Controla si existe un turno de caja abierto antes de habilitar el cobro
     const [cajaAbierta, setCajaAbierta] = useState(false);
     const [verificandoCaja, setVerificandoCaja] = useState(true);
+
+    const fechaHoy = obtenerFechaHoyLocal();
 
     const {
         register,
@@ -25,7 +51,7 @@ function RegistrarCuotaPage() {
             idPlanSeleccionado: '',
             tipoPago: 'EFECTIVO',
             montoAbonado: '',
-            fecha: new Date().toISOString().split('T')[0],
+            fecha: fechaHoy,
             observacion: '',
         },
     });
@@ -112,6 +138,20 @@ function RegistrarCuotaPage() {
                 return;
             }
 
+            const fechaActualPago = obtenerFechaHoyLocal();
+
+            // Impedir registrar una segunda cuota mientras el socio tenga una vigente
+            if (tieneCuotaVigente(clienteSeleccionado, fechaActualPago)) {
+                alert(
+                    `Este socio ya tiene una cuota activa vigente${
+                        clienteSeleccionado.fecha_vencimiento
+                            ? ` hasta el ${clienteSeleccionado.fecha_vencimiento}`
+                            : ''
+                    }. No puede tener dos cuotas al mismo tiempo.`
+                );
+                return;
+            }
+
             const planEncontrado = planes.find(
                 (p) =>
                     String(p.id_planes) === String(data.idPlanSeleccionado) ||
@@ -123,11 +163,11 @@ function RegistrarCuotaPage() {
                 return;
             }
 
-            // Tomar el precio oficial del plan para evitar alteraciones en el monto cobrado
+            // Tomar el precio oficial del plan y la fecha actual del día para evitar alteraciones
             const montoOficialPlan = parseFloat(planEncontrado.precio || 0);
 
             const diasDuracion = Number(planEncontrado?.duracion || planEncontrado?.dias || 30);
-            const fechaBase = new Date(`${data.fecha}T00:00:00`);
+            const fechaBase = new Date(`${fechaActualPago}T00:00:00`);
             fechaBase.setDate(fechaBase.getDate() + diasDuracion);
             const fechaVencimiento = fechaBase.toISOString().split('T')[0];
 
@@ -145,7 +185,7 @@ function RegistrarCuotaPage() {
                 id_plan: data.idPlanSeleccionado,
                 nombre_plan: planEncontrado.nombre_plan || 'Plan general',
                 tipo_de_pago: data.tipoPago,
-                fecha: data.fecha,
+                fecha: fechaActualPago,
                 // Marca temporal exacta para el arqueo del cierre de caja
                 fecha_hora_registro: new Date().toISOString(),
                 fecha_vencimiento: fechaVencimiento,
@@ -207,6 +247,7 @@ function RegistrarCuotaPage() {
 
     const dniLimpioActual = String(dniWatch || '').trim();
     const clienteEncontrado = clientes.find((c) => String(c.dni) === dniLimpioActual);
+    const socioYaTieneCuota = tieneCuotaVigente(clienteEncontrado, fechaHoy);
 
     return (
         <div style={styles.container}>
@@ -247,6 +288,15 @@ function RegistrarCuotaPage() {
                             {clienteEncontrado
                                 ? `✓ Socio: ${clienteEncontrado.nombre} ${clienteEncontrado.apellido} [${clienteEncontrado.estado || 'Inactivo'}]`
                                 : '⚠ DNI no registrado'}
+                        </div>
+                    )}
+                    {socioYaTieneCuota && (
+                        <div style={styles.activeQuotaWarning}>
+                            ⛔ Este socio ya posee una cuota vigente
+                            {clienteEncontrado.fecha_vencimiento
+                                ? ` (vence el ${clienteEncontrado.fecha_vencimiento})`
+                                : ''}
+                            . No se puede registrar otra cuota hasta que venza o agote sus clases.
                         </div>
                     )}
                 </div>
@@ -320,12 +370,17 @@ function RegistrarCuotaPage() {
 
                     <div>
                         <label style={styles.label}>Fecha de Pago:</label>
+                        {/* Fijada al día de hoy (min/max + readOnly) para impedir cobros con otra fecha */}
                         <input
                             type="date"
+                            min={fechaHoy}
+                            max={fechaHoy}
+                            readOnly
+                            tabIndex={-1}
                             {...register('fecha', {
                                 required: 'La fecha de pago es obligatoria',
                             })}
-                            style={styles.input}
+                            style={styles.inputReadOnly}
                         />
                         {errors.fecha && <p style={styles.errorText}>{errors.fecha.message}</p>}
                     </div>
@@ -355,7 +410,11 @@ function RegistrarCuotaPage() {
                     >
                         Cancelar
                     </button>
-                    <button type="submit" style={styles.submitButton}>
+                    <button
+                        type="submit"
+                        disabled={socioYaTieneCuota}
+                        style={socioYaTieneCuota ? styles.submitButtonDisabled : styles.submitButton}
+                    >
                         Registrar Pago
                     </button>
                 </div>
@@ -465,6 +524,16 @@ const styles = {
         marginTop: '4px',
         fontWeight: 'bold',
     },
+    activeQuotaWarning: {
+        marginTop: '8px',
+        padding: '10px 12px',
+        backgroundColor: '#fef2f2',
+        border: '1px solid #fecaca',
+        borderRadius: '4px',
+        color: '#b91c1c',
+        fontSize: '12px',
+        fontWeight: 'bold',
+    },
     rowGrid: {
         display: 'grid',
         gridTemplateColumns: '1fr 1fr 1fr',
@@ -503,6 +572,15 @@ const styles = {
         border: 'none',
         borderRadius: '4px',
         cursor: 'pointer',
+        fontWeight: 'bold',
+    },
+    submitButtonDisabled: {
+        padding: '9px 16px',
+        background: '#94a3b8',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'not-allowed',
         fontWeight: 'bold',
     },
 };

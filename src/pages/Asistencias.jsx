@@ -3,29 +3,29 @@ import { useForm } from 'react-hook-form';
 import { db } from '../firebase';
 import { collection, getDocs, addDoc, doc, updateDoc } from 'firebase/firestore';
 
-// Obtiene la fecha local en formato YYYY-MM-DD para evitar desfases por huso horario
-function obtenerFechaHoyLocal() {
-    const ahora = new Date();
-    const anio = ahora.getFullYear();
-    const mes = String(ahora.getMonth() + 1).padStart(2, '0');
-    const dia = String(ahora.getDate()).padStart(2, '0');
+const obtenerFechaLocalISO = (fechaInput = new Date()) => {
+    const fecha = fechaInput instanceof Date ? fechaInput : new Date(fechaInput);
+    if (Number.isNaN(fecha.getTime())) return '';
+    const anio = fecha.getFullYear();
+    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+    const dia = String(fecha.getDate()).padStart(2, '0');
     return `${anio}-${mes}-${dia}`;
-}
+};
 
-// Extrae YYYY-MM-DD de una asistencia guardada (prioriza campo `fecha` o deriva de `timestamp`)
-function obtenerFechaAsistencia(item) {
-    if (item.fecha) return String(item.fecha);
-    if (item.timestamp) {
-        const fechaObj = new Date(item.timestamp);
-        if (!Number.isNaN(fechaObj.getTime())) {
-            const anio = fechaObj.getFullYear();
-            const mes = String(fechaObj.getMonth() + 1).padStart(2, '0');
-            const dia = String(fechaObj.getDate()).padStart(2, '0');
-            return `${anio}-${mes}-${dia}`;
+const extraerFechaAsistencia = (registro) => {
+    if (registro.fecha) return registro.fecha;
+    if (registro.timestamp) {
+        return obtenerFechaLocalISO(registro.timestamp);
+    }
+    if (typeof registro.fecha_hora === 'string') {
+        const parteFecha = registro.fecha_hora.split(',')[0]?.trim();
+        const partes = parteFecha?.split('/');
+        if (partes && partes.length === 3) {
+            return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
         }
     }
     return '';
-}
+};
 
 function Asistencias() {
     const [clientes, setClientes] = useState([]);
@@ -90,10 +90,9 @@ function Asistencias() {
             return;
         }
 
-        const docIdCliente = clienteEncontrado.id || dniBuscado;
-        const docRefCliente = doc(db, 'clientes', docIdCliente);
+        const docRefCliente = doc(db, 'clientes', dniBuscado);
 
-        // 1. Verificar si está Inactivo
+        // 1. Verificar si ya está Inactivo
         if (clienteEncontrado.estado !== 'Activo') {
             alert(
                 `Acceso denegado. El socio ${clienteEncontrado.nombre} ${clienteEncontrado.apellido} está Inactivo (Debe abonar su cuota).`
@@ -103,8 +102,8 @@ function Asistencias() {
         }
 
         // 2. Verificar si venció por fecha
-        const hoyStr = obtenerFechaHoyLocal();
-        if (clienteEncontrado.fecha_vencimiento && hoyStr > clienteEncontrado.fecha_vencimiento) {
+        const fechaHoy = obtenerFechaLocalISO();
+        if (clienteEncontrado.fecha_vencimiento && fechaHoy > clienteEncontrado.fecha_vencimiento) {
             await updateDoc(docRefCliente, { estado: 'Inactivo' });
             alert(
                 `Cuota vencida el ${clienteEncontrado.fecha_vencimiento}. El socio ${clienteEncontrado.nombre} pasó a estado Inactivo.`
@@ -114,29 +113,27 @@ function Asistencias() {
             return;
         }
 
-        // 3. Verificar si el socio ya tiene asistencia registrada el día de hoy
-        const yaMarcoHoy = asistenciasHoy.some(
-            (item) =>
-                String(item.dni) === dniBuscado && obtenerFechaAsistencia(item) === hoyStr
+        // 3. Verificar que no haya registrado asistencia ya hoy
+        const yaAsistioHoy = asistenciasHoy.some(
+            (registro) =>
+                String(registro.dni) === dniBuscado &&
+                extraerFechaAsistencia(registro) === fechaHoy
         );
 
-        if (yaMarcoHoy) {
+        if (yaAsistioHoy) {
             alert(
-                `⚠ El socio ${clienteEncontrado.nombre} ${clienteEncontrado.apellido} ya tiene asistencia registrada hoy. Solo se permite una asistencia por día.`
+                `⚠ El socio ${clienteEncontrado.nombre} ${clienteEncontrado.apellido} ya tiene una asistencia registrada el día de hoy.`
             );
             reset({ dniCliente: '' });
             return;
         }
 
-        // 4. Validar clases si tiene límite numérico y descontar la clase de este ingreso
+        // 4. Descontar clases si el socio tiene clases cargadas como número
         let mensajeExtra = '';
-        let nuevasClases = null;
-        let nuevoEstado = clienteEncontrado.estado || 'Activo';
-
         if (typeof clienteEncontrado.clases_disponibles === 'number') {
-            const clasesActuales = Number(clienteEncontrado.clases_disponibles);
+            let clasesRestantes = Number(clienteEncontrado.clases_disponibles);
 
-            if (clasesActuales <= 0) {
+            if (clasesRestantes <= 0) {
                 await updateDoc(docRefCliente, { estado: 'Inactivo', clases_disponibles: 0 });
                 alert(
                     `❌ Sin clases disponibles. El socio ${clienteEncontrado.nombre} pasó a estado Inactivo.`
@@ -146,13 +143,18 @@ function Asistencias() {
                 return;
             }
 
-            nuevasClases = clasesActuales - 1;
-            nuevoEstado = nuevasClases <= 0 ? 'Inactivo' : 'Activo';
+            clasesRestantes = clasesRestantes - 1;
+            const nuevoEstado = clasesRestantes <= 0 ? 'Inactivo' : 'Activo';
+
+            await updateDoc(docRefCliente, {
+                clases_disponibles: clasesRestantes,
+                estado: nuevoEstado,
+            });
 
             mensajeExtra =
-                nuevasClases === 0
-                    ? '\n⚠ Se consumió su última clase disponible. Su estado pasó a Inactivo.'
-                    : `\nClases restantes: ${nuevasClases}`;
+                clasesRestantes === 0
+                    ? '\n⚠ Esta fue su última clase. Su estado pasó a Inactivo.'
+                    : `\nClases restantes: ${clasesRestantes}`;
         }
 
         try {
@@ -166,26 +168,17 @@ function Asistencias() {
                 second: '2-digit',
             });
 
-            // Registrar la asistencia válida del ingreso
             await addDoc(collection(db, 'asistencias'), {
                 dni: dniBuscado,
                 cliente: `${clienteEncontrado.nombre} ${clienteEncontrado.apellido}`,
-                fecha: hoyStr,
+                fecha: fechaHoy,
                 fecha_hora: fechaHoraFormateada,
                 timestamp: ahora.toISOString(),
             });
 
-            // Actualizar clases restantes y estado del socio tras registrar el ingreso
-            if (typeof nuevasClases === 'number') {
-                await updateDoc(docRefCliente, {
-                    clases_disponibles: nuevasClases,
-                    estado: nuevoEstado,
-                });
-            }
-
             alert(`¡Asistencia registrada! Bienvenido/a ${clienteEncontrado.nombre}.${mensajeExtra}`);
             reset({ dniCliente: '' });
-            await obtenerDatos();
+            obtenerDatos();
         } catch (error) {
             console.error('Error al registrar asistencia: ', error);
             alert('Hubo un error al registrar la asistencia.');
@@ -202,11 +195,7 @@ function Asistencias() {
                     <input
                         type="text"
                         inputMode="numeric"
-                        maxLength={9}
                         placeholder="Ingrese o escanee el DNI y presione Enter"
-                        onInput={(e) => {
-                            e.target.value = e.target.value.replace(/\D/g, '').slice(0, 9);
-                        }}
                         {...register('dniCliente', {
                             required: 'El DNI es obligatorio',
                             minLength: { value: 7, message: 'Mínimo 7 dígitos' },
@@ -378,4 +367,3 @@ const styles = {
 };
 
 export default Asistencias;
-

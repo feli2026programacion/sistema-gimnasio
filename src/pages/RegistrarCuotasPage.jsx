@@ -163,7 +163,7 @@ function RegistrarCuotaPage() {
                 return;
             }
 
-            // Tomar el precio oficial del plan y la fecha actual del día para evitar alteraciones
+            // Tomar el precio oficial del plan y la fecha actual del día de hoy para evitar  que haya errores
             const montoOficialPlan = parseFloat(planEncontrado.precio || 0);
 
             const diasDuracion = Number(planEncontrado?.duracion || planEncontrado?.dias || 30);
@@ -292,7 +292,7 @@ function RegistrarCuotaPage() {
                     )}
                     {socioYaTieneCuota && (
                         <div style={styles.activeQuotaWarning}>
-                            ⛔ Este socio ya posee una cuota vigente
+                            Este socio ya posee una cuota vigente
                             {clienteEncontrado.fecha_vencimiento
                                 ? ` (vence el ${clienteEncontrado.fecha_vencimiento})`
                                 : ''}
@@ -354,7 +354,7 @@ function RegistrarCuotaPage() {
                             value={
                                 montoWatch !== '' && montoWatch !== undefined
                                     ? `$${Number(montoWatch).toLocaleString('es-AR', {
-                                          minimumFractionDigits: 2,
+                                           minimumFractionDigits: 2,
                                       })}`
                                     : 'Selecciona un plan'
                             }

@@ -1,44 +1,30 @@
-import React, { useState, useEffect } from 'react'; // useState para estados, useEffect para efectos secundarios (ciclo de vida)[cite: 4, 5, 6]
-import { useForm } from 'react-hook-form'; // Hook para gestionar formularios y validaciones[cite: 15, 16, 36]
+import React, { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
 import { db, auth } from '../firebase'; // Instancia de Firestore (base de datos) y Auth (autenticación)
-import { collection, getDocs, doc, setDoc, deleteDoc, query, where } from 'firebase/firestore'; // Funciones CRUD y filtros en Firestore
+import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore'; // Funciones CRUD en Firestore
 
 function PlanesPage() {
-    // Estados principales de la vista y la tabla
-    const [planes, setPlanes] = useState([]); // Lista de planes cargados desde Firestore
-    const [busqueda, setBusqueda] = useState(''); // Texto actual del buscador para filtrar planes
-    const [cargando, setCargando] = useState(true); // Indica si se están cargando los datos (efecto secundario inicial)[cite: 4, 8]
+    const [planes, setPlanes] = useState([]); // Lista compartida de planes cargados desde Firestore
+    const [busqueda, setBusqueda] = useState('');
+    const [cargando, setCargando] = useState(true);
 
-    // Estados para controlar la ventana modal (crear vs. editar)
-    const [mostrarModal, setMostrarModal] = useState(false); // Muestra u oculta el modal
-    const [modoEdicion, setModoEdicion] = useState(false); // true = editando plan existente, false = creando uno nuevo
+    const [mostrarModal, setMostrarModal] = useState(false);
+    const [modoEdicion, setModoEdicion] = useState(false);
 
-    // Inicialización de React Hook Form:
-    // - register: registra inputs y define reglas de validación (required, min, maxLength, etc.)[cite: 16, 36]
-    // - handleSubmit: valida los campos antes de ejecutar onSubmit[cite: 17]
-    // - setValue: asigna valores a campos programáticamente (ej. ID automático o datos al editar)
-    // - reset: limpia o resetea los campos del formulario[cite: 17, 18]
-    // - formState: { errors }: contiene los mensajes de error de validación de cada input[cite: 17, 38]
     const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm();
 
-    // Consulta a Firestore trayendo solo los planes que pertenecen al usuario autenticado
+    // Consulta a Firestore trayendo todos los planes compartidos entre usuarios autenticados
     const obtenerPlanes = async () => {
         try {
             setCargando(true);
 
-            // Si no hay sesión activa, limpiamos la lista y cortamos la consulta
+            // Si no hay sesión activa, no realiza consulta
             if (!auth.currentUser) {
                 setPlanes([]);
                 return;
             }
 
-            // Filtra la colección "planes" por el UID del usuario actual
-            const q = query(
-                collection(db, 'planes'),
-                where('userId', '==', auth.currentUser.uid)
-            );
-
-            const querySnapshot = await getDocs(q);
+            const querySnapshot = await getDocs(collection(db, 'planes'));
             const listaPlanes = querySnapshot.docs.map(documento => ({
                 id: documento.id,
                 ...documento.data()
@@ -50,14 +36,12 @@ function PlanesPage() {
         } catch (error) {
             console.error('Error al obtener planes: ', error);
         } finally {
-            // Siempre apaga el estado de carga al finalizar (haya error o éxito)
             setCargando(false);
         }
     };
 
-    // Efecto secundario al montar el componente ([]): carga los planes una vez[cite: 4, 8, 12]
     useEffect(() => {
-        let activa = true; // Bandera para evitar actualizar estado si el componente se desmonta[cite: 7]
+        let activa = true;
 
         const cargar = async () => {
             if (!activa) return;
@@ -66,41 +50,49 @@ function PlanesPage() {
 
         cargar();
 
-        // Función de limpieza al desmontar el componente[cite: 7, 10]
         return () => {
             activa = false;
         };
     }, []);
 
-    // Se ejecuta únicamente cuando handleSubmit pasa todas las validaciones[cite: 17]
     const onSubmit = async (data) => {
         try {
-            // Normaliza los tipos de datos y asocia el plan al usuario actual
             const planData = {
-                userId: auth.currentUser.uid,
                 id_planes: Number(data.id_planes),
-                nombre_plan: data.nombre_plan,
+                nombre_plan: data.nombre_plan.trim(),
                 precio: parseFloat(data.precio),
                 duracion: Number(data.duracion),
                 cantidad_de_clases: Number(data.cantidad_de_clases)
             };
 
-            // Crea o actualiza el documento usando el ID del plan como clave
             await setDoc(doc(db, 'planes', String(data.id_planes)), planData, { merge: true });
 
-            cerrarModal(); // Limpia y cierra el modal
-            obtenerPlanes(); // Refresca la lista desde Firestore
+            cerrarModal();
+            obtenerPlanes(); // Refresca la lista compartida desde Firestore
         } catch (error) {
             console.error('Error al guardar el plan: ', error);
         }
     };
 
-    // Prepara el formulario para crear un plan asignando el siguiente ID disponible
-    const abrirModalNuevo = () => {
+    // Prepara el formulario para crear un plan consultando el último ID en Firestore
+    const abrirModalNuevo = async () => {
         reset();
-        const maxId = planes.length > 0
+        let maxId = planes.length > 0
             ? Math.max(...planes.map(p => Number(p.id_planes) || 0))
             : 0;
+
+        try {
+            const snapshotActual = await getDocs(collection(db, 'planes'));
+            if (!snapshotActual.empty) {
+                const maxRemoto = Math.max(
+                    ...snapshotActual.docs.map(d => Number(d.data().id_planes ?? d.id) || 0)
+                );
+                maxId = Math.max(maxId, maxRemoto);
+            }
+        } catch (error) {
+            console.error('Error al calcular el próximo ID de plan: ', error);
+        }
+
         setValue('id_planes', maxId + 1);
         setModoEdicion(false);
         setMostrarModal(true);
@@ -123,7 +115,7 @@ function PlanesPage() {
         setMostrarModal(false);
     };
 
-    // Elimina un plan de Firestore y actualiza el estado usando el valor previo (prev)[cite: 30, 31]
+    // Elimina un plan de Firestore y actualiza el estado usando el valor previo (prev)
     const handleEliminar = async (id) => {
         if (!window.confirm(`¿Estás seguro de que deseas eliminar el plan #${id}?`)) return;
 
@@ -145,7 +137,6 @@ function PlanesPage() {
 
     return (
         <div style={styles.container}>
-            {/* Encabezado de la pantalla y botón para abrir el modal de creación */}
             <div style={styles.header}>
                 <div>
                     <h2 style={styles.title}>Gestión de Planes</h2>
@@ -153,13 +144,11 @@ function PlanesPage() {
                         Administra los abonos, tarifas, duración y cantidad de clases disponibles.
                     </p>
                 </div>
-                {/* type="button" evita que actúe como botón de envío de formulario */}
                 <button type="button" onClick={abrirModalNuevo} style={styles.newButton}>
                     + Nuevo Plan
                 </button>
             </div>
 
-            {/* Campo de búsqueda controlado por estado (onChange actualiza "busqueda")[cite: 28, 29] */}
             <div style={styles.searchContainer}>
                 <input
                     type="text"
@@ -170,7 +159,6 @@ function PlanesPage() {
                 />
             </div>
 
-            {/* Contenedor de la tabla de planes */}
             <div style={styles.tableWrapper}>
                 <table style={styles.table}>
                     <thead>
@@ -184,7 +172,6 @@ function PlanesPage() {
                         </tr>
                     </thead>
                     <tbody>
-                        {/* Renderizado condicional según estado de carga, lista vacía o con datos */}
                         {cargando ? (
                             <tr>
                                 <td colSpan="6" style={styles.tableMessage}>Cargando planes...</td>
@@ -199,14 +186,12 @@ function PlanesPage() {
                                     key={plan.id}
                                     style={{
                                         ...styles.tableRow,
-                                        // Estilo condicional con operador ternario para alternar color de fila[cite: 51, 52]
                                         backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8fafc'
                                     }}
                                 >
                                     <td style={styles.tdId}>#{plan.id_planes}</td>
                                     <td style={styles.tdNombre}>{plan.nombre_plan}</td>
                                     <td style={styles.tdPrecio}>
-                                        {/* Formatea el precio al formato monetario argentino */}
                                         ${Number(plan.precio).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                                     </td>
                                     <td style={styles.tdMuted}>{plan.duracion} días</td>
@@ -236,18 +221,14 @@ function PlanesPage() {
                 </table>
             </div>
 
-            {/* Modal condicional: solo se renderiza en el DOM cuando mostrarModal es true */}
             {mostrarModal && (
                 <div style={styles.modalOverlay}>
                     <div style={styles.modalContent}>
-                        {/* Título dinámico según si se está editando o creando[cite: 51, 52] */}
                         <h3 style={styles.modalTitle}>
                             {modoEdicion ? 'Editar Plan' : 'Crear Nuevo Plan'}
                         </h3>
 
-                        {/* noValidate desactiva la validación nativa del navegador para usar React Hook Form */}
                         <form onSubmit={handleSubmit(onSubmit)} noValidate>
-                            {/* ID automático deshabilitado para que el usuario no lo altere */}
                             <div style={styles.inputGroup}>
                                 <label style={styles.label}>ID del Plan (Automático):</label>
                                 <input
@@ -258,7 +239,6 @@ function PlanesPage() {
                                 />
                             </div>
 
-                            {/* Campo Nombre con reglas required y maxLength[cite: 36, 37] */}
                             <div style={styles.inputGroup}>
                                 <label style={styles.label}>Nombre del Plan:</label>
                                 <input
@@ -271,11 +251,9 @@ function PlanesPage() {
                                     placeholder="Ej: Pase Libre Mensual"
                                     style={styles.input}
                                 />
-                                {/* Muestra el mensaje de error si falla la validación[cite: 17, 38] */}
                                 {errors.nombre_plan && <p style={styles.errorText}>{errors.nombre_plan.message}</p>}
                             </div>
 
-                            {/* Campo Precio con required, min y bloqueo de "-" o "e" en teclado[cite: 36] */}
                             <div style={styles.inputGroup}>
                                 <label style={styles.label}>Precio ($):</label>
                                 <input
@@ -292,7 +270,6 @@ function PlanesPage() {
                                 {errors.precio && <p style={styles.errorText}>{errors.precio.message}</p>}
                             </div>
 
-                            {/* Campo Duración con validación obligatoria y mínima de 1 día[cite: 36] */}
                             <div style={styles.inputGroup}>
                                 <label style={styles.label}>Duración (en días):</label>
                                 <input
@@ -308,7 +285,6 @@ function PlanesPage() {
                                 {errors.duracion && <p style={styles.errorText}>{errors.duracion.message}</p>}
                             </div>
 
-                            {/* Campo Cantidad de clases con validación obligatoria y mínima de 1[cite: 36] */}
                             <div style={styles.inputGroupLast}>
                                 <label style={styles.label}>Cantidad de Clases:</label>
                                 <input
@@ -324,7 +300,6 @@ function PlanesPage() {
                                 {errors.cantidad_de_clases && <p style={styles.errorText}>{errors.cantidad_de_clases.message}</p>}
                             </div>
 
-                            {/* Botones de acción del formulario */}
                             <div style={styles.modalButtonsContainer}>
                                 <button type="button" onClick={cerrarModal} style={styles.cancelButton}>
                                     Cancelar
@@ -341,10 +316,6 @@ function PlanesPage() {
     );
 }
 
-// ==========================================
-// ESTILOS DEL COMPONENTE
-// Objeto centralizado de estilos inline en camelCase (separado del JSX)
-// ==========================================
 const styles = {
     container: {
         padding: '30px',

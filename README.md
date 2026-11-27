@@ -23,7 +23,11 @@ Sigue estos pasos para clonar y ejecutar el proyecto localmente:
    ```bash
    git clone https://github.com/feli2026programacion/sistema-gimnasio.git
 
-esto es del tp 2
+
+
+
+
+## Esto es del proyecto final
 # Sistema de Gestión de Gimnasio (MVP)
 
 Aplicación web desarrollada en **React** con **Firebase Authentication** y **Cloud Firestore** para centralizar la administración diaria de un gimnasio: socios, planes, caja, cuotas y control de asistencias.
@@ -45,7 +49,8 @@ Aplicación web desarrollada en **React** con **Firebase Authentication** y **Cl
 
 1. **Clonar el repositorio:**
    ```bash
-   git clone 
+   git clone -b joaquin https://github.com/feli2026programacion/sistema-gimnasio.git
+
    cd sistema-gimnasio
 
 ## instalar dependencias

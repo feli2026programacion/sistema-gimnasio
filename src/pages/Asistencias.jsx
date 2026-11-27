@@ -136,7 +136,7 @@ function Asistencias() {
             if (clasesRestantes <= 0) {
                 await updateDoc(docRefCliente, { estado: 'Inactivo', clases_disponibles: 0 });
                 alert(
-                    `❌ Sin clases disponibles. El socio ${clienteEncontrado.nombre} pasó a estado Inactivo.`
+                    ` Sin clases disponibles. El socio ${clienteEncontrado.nombre} pasó a estado Inactivo.`
                 );
                 reset({ dniCliente: '' });
                 obtenerDatos();
